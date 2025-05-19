@@ -1,41 +1,123 @@
-﻿// ===============================
-// PluginProcessor.cpp
-// ===============================
+﻿
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cstdint>  // for uint32_t
+
 
 ThreeBandSplitterAudioProcessor::ThreeBandSplitterAudioProcessor()
     : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-    apvts(*this, nullptr, "Parameters", createParameterLayout())
+    apvts(*this, nullptr, "PARAMETERS", {
+        std::make_unique<juce::AudioParameterFloat>("lowMidFreq", "Low-Mid Crossover", juce::NormalisableRange<float>(20.0f, 2000.0f), 400.0f),
+        std::make_unique<juce::AudioParameterFloat>("midHighFreq", "Mid-High Crossover", juce::NormalisableRange<float>(1000.0f, 20000.0f), 2500.0f),
+        std::make_unique<juce::AudioParameterFloat>("gainLow", "Low Gain", -48.0f, 12.0f, 0.0f),
+        std::make_unique<juce::AudioParameterFloat>("gainMid", "Mid Gain", -48.0f, 12.0f, 0.0f),
+        std::make_unique<juce::AudioParameterFloat>("gainHigh", "High Gain", -48.0f, 12.0f, 0.0f),
+        std::make_unique<juce::AudioParameterBool>("muteLow", "Mute Low", false),
+        std::make_unique<juce::AudioParameterBool>("muteMid", "Mute Mid", false),
+        std::make_unique<juce::AudioParameterBool>("muteHigh", "Mute High", false),
+        std::make_unique<juce::AudioParameterBool>("soloLow", "Solo Low", false),
+        std::make_unique<juce::AudioParameterBool>("soloMid", "Solo Mid", false),
+        std::make_unique<juce::AudioParameterBool>("soloHigh", "Solo High", false),
+        })
 {
 }
 
-void ThreeBandSplitterAudioProcessor::prepareToPlay(double, int) {}
-void ThreeBandSplitterAudioProcessor::releaseResources() {}
-void ThreeBandSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) {}
+ThreeBandSplitterAudioProcessor::~ThreeBandSplitterAudioProcessor() {}
 
-juce::AudioProcessorEditor* ThreeBandSplitterAudioProcessor::createEditor()
+const juce::String ThreeBandSplitterAudioProcessor::getName() const { return "xSplitter"; }
+bool ThreeBandSplitterAudioProcessor::acceptsMidi() const { return false; }
+bool ThreeBandSplitterAudioProcessor::producesMidi() const { return false; }
+bool ThreeBandSplitterAudioProcessor::isMidiEffect() const { return false; }
+double ThreeBandSplitterAudioProcessor::getTailLengthSeconds() const { return 0.0; }
+
+int ThreeBandSplitterAudioProcessor::getNumPrograms() { return 1; }
+int ThreeBandSplitterAudioProcessor::getCurrentProgram() { return 0; }
+void ThreeBandSplitterAudioProcessor::setCurrentProgram(int) {}
+const juce::String ThreeBandSplitterAudioProcessor::getProgramName(int) { return {}; }
+void ThreeBandSplitterAudioProcessor::changeProgramName(int, const juce::String&) {}
+
+void ThreeBandSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    juce::dsp::ProcessSpec spec{ sampleRate, static_cast<uint32_t> (samplesPerBlock), 2 };
+    lowPass.prepare(spec);
+    highPass.prepare(spec);
+    midLowPass.prepare(spec);
+    midHighPass.prepare(spec);
+}
+
+void ThreeBandSplitterAudioProcessor::releaseResources() {}
+
+void ThreeBandSplitterAudioProcessor::applyGainAndMute(juce::AudioBuffer<float>& buffer, const juce::String& gainID, const juce::String& muteID)
+{
+    if (apvts.getRawParameterValue(muteID)->load() > 0.5f)
+    {
+        buffer.clear();
+        return;
+    }
+
+    const float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(gainID)->load());
+    buffer.applyGain(gain);
+}
+
+
+void ThreeBandSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+{
+    const float lowMidFreq = apvts.getRawParameterValue("lowMidFreq")->load();
+    const float midHighFreq = apvts.getRawParameterValue("midHighFreq")->load();
+
+    lowPass.setCutoffFrequency(lowMidFreq);
+    highPass.setCutoffFrequency(midHighFreq);
+    midLowPass.setCutoffFrequency(midHighFreq);
+    midHighPass.setCutoffFrequency(lowMidFreq);
+
+    juce::AudioBuffer<float> lowBand(buffer), midBand(buffer), highBand(buffer);
+
+    juce::dsp::AudioBlock<float> lowBlock(lowBand);
+    juce::dsp::AudioBlock<float> midBlock(midBand);
+    juce::dsp::AudioBlock<float> highBlock(highBand);
+
+    lowPass.process(juce::dsp::ProcessContextReplacing<float>(lowBlock));
+    highPass.process(juce::dsp::ProcessContextReplacing<float>(highBlock));
+    midHighPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock));
+    midLowPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock));
+
+    applyGainAndMute(lowBand, "gainLow", "muteLow");
+    applyGainAndMute(midBand, "gainMid", "muteMid");
+    applyGainAndMute(highBand, "gainHigh", "muteHigh");
+
+    const bool soloLow = apvts.getRawParameterValue("soloLow")->load();
+    const bool soloMid = apvts.getRawParameterValue("soloMid")->load();
+    const bool soloHigh = apvts.getRawParameterValue("soloHigh")->load();
+    const bool anySolo = soloLow || soloMid || soloHigh;
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        buffer.clear(ch, 0, buffer.getNumSamples());
+        if (!anySolo || soloLow)
+            buffer.addFrom(ch, 0, lowBand, ch, 0, buffer.getNumSamples());
+        if (!anySolo || soloMid)
+            buffer.addFrom(ch, 0, midBand, ch, 0, buffer.getNumSamples());
+        if (!anySolo || soloHigh)
+            buffer.addFrom(ch, 0, highBand, ch, 0, buffer.getNumSamples());
+    }
+}
+
+
+bool ThreeBandSplitterAudioProcessor::hasEditor() const { return true; }
+
+juce::AudioProcessorEditor* ThreeBandSplitterAudioProcessor::createEditor() {
     return new ThreeBandSplitterAudioProcessorEditor(*this);
 }
 
-bool ThreeBandSplitterAudioProcessor::hasEditor() const { return true; }
-const juce::String ThreeBandSplitterAudioProcessor::getName() const { return JucePlugin_Name; }
+void ThreeBandSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    apvts.state.writeToStream(stream);
+}
 
-juce::AudioProcessorValueTreeState::ParameterLayout ThreeBandSplitterAudioProcessor::createParameterLayout()
-{
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "lowMidCrossover", "Low-Mid Crossover",
-        juce::NormalisableRange<float>(20.0f, 2000.0f, 1.0f, 0.5f), 400.0f));
-
-    params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "midHighCrossover", "Mid-High Crossover",
-        juce::NormalisableRange<float>(1000.0f, 10000.0f, 1.0f, 0.5f), 2000.0f));
-
-    return { params.begin(), params.end() };
+void ThreeBandSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
+    juce::ValueTree tree = juce::ValueTree::readFromData(data, sizeInBytes);
+    if (tree.isValid()) apvts.replaceState(tree);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

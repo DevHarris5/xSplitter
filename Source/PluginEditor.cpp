@@ -1,39 +1,49 @@
-// ===============================
-// PluginEditor.cpp
-// ===============================
+#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 ThreeBandSplitterAudioProcessorEditor::ThreeBandSplitterAudioProcessorEditor(ThreeBandSplitterAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
+    setSize(400, 300);
+
     addAndMakeVisible(lowMidSlider);
+    lowMidSlider.setSliderStyle(juce::Slider::Rotary);
+    lowMidSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+
     addAndMakeVisible(midHighSlider);
+    midHighSlider.setSliderStyle(juce::Slider::Rotary);
+    midHighSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
 
-    lowMidSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    lowMidSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 60, 20);
+    addAndMakeVisible(lowMidLabel);
+    lowMidLabel.setText("Low-Mid", juce::dontSendNotification);
+    lowMidLabel.attachToComponent(&lowMidSlider, false);
 
-    midHighSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    midHighSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 60, 20);
+    addAndMakeVisible(midHighLabel);
+    midHighLabel.setText("Mid-High", juce::dontSendNotification);
+    midHighLabel.attachToComponent(&midHighSlider, false);
 
     lowMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.apvts, "lowMidCrossover", lowMidSlider);
+        audioProcessor.apvts, "lowMidFreq", lowMidSlider);
 
     midHighAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-        audioProcessor.apvts, "midHighCrossover", midHighSlider);
-
-    setSize(400, 200);
+        audioProcessor.apvts, "midHighFreq", midHighSlider);
 }
+
+ThreeBandSplitterAudioProcessorEditor::~ThreeBandSplitterAudioProcessorEditor() = default;
 
 void ThreeBandSplitterAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(juce::Colours::darkgrey);
+    g.fillAll(juce::Colours::black);
     g.setColour(juce::Colours::white);
     g.setFont(15.0f);
-    g.drawFittedText("3-Band Splitter", getLocalBounds(), juce::Justification::centredTop, 1);
+    g.drawFittedText("Three Band Splitter", getLocalBounds(), juce::Justification::centredTop, 1);
 }
 
 void ThreeBandSplitterAudioProcessorEditor::resized()
 {
-    lowMidSlider.setBounds(50, 60, 120, 120);
-    midHighSlider.setBounds(230, 60, 120, 120);
+    auto area = getLocalBounds().reduced(20);
+    auto width = area.getWidth() / 2;
+
+    lowMidSlider.setBounds(area.removeFromLeft(width));
+    midHighSlider.setBounds(area);
 }
