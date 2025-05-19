@@ -27,6 +27,39 @@ ThreeBandSplitterAudioProcessorEditor::ThreeBandSplitterAudioProcessorEditor(Thr
 
     midHighAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "midHighFreq", midHighSlider);
+    // Mute buttons
+    addAndMakeVisible(muteLowButton);
+    muteLowButton.setButtonText("Mute Low");
+    muteLowAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "muteLow", muteLowButton);
+
+    addAndMakeVisible(muteMidButton);
+    muteMidButton.setButtonText("Mute Mid");
+    muteMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "muteMid", muteMidButton);
+
+    addAndMakeVisible(muteHighButton);
+    muteHighButton.setButtonText("Mute High");
+    muteHighAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "muteHigh", muteHighButton);
+
+    // Solo buttons
+    addAndMakeVisible(soloLowButton);
+    soloLowButton.setButtonText("Solo Low");
+    soloLowAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "soloLow", soloLowButton);
+
+    addAndMakeVisible(soloMidButton);
+    soloMidButton.setButtonText("Solo Mid");
+    soloMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "soloMid", soloMidButton);
+
+    addAndMakeVisible(soloHighButton);
+    soloHighButton.setButtonText("Solo High");
+    soloHighAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "soloHigh", soloHighButton);
+
+
 }
 
 ThreeBandSplitterAudioProcessorEditor::~ThreeBandSplitterAudioProcessorEditor() = default;
