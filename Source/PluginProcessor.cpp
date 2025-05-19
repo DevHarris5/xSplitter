@@ -36,14 +36,26 @@ void ThreeBandSplitterAudioProcessor::setCurrentProgram(int) {}
 const juce::String ThreeBandSplitterAudioProcessor::getProgramName(int) { return {}; }
 void ThreeBandSplitterAudioProcessor::changeProgramName(int, const juce::String&) {}
 
+
 void ThreeBandSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::dsp::ProcessSpec spec{ sampleRate, static_cast<uint32_t>(samplesPerBlock), 2 };
+    juce::dsp::ProcessSpec spec{
+        sampleRate,
+        static_cast<uint32_t>(samplesPerBlock),
+        static_cast<uint32_t>(getTotalNumInputChannels())
+    };
+
     lowPass.prepare(spec);
     highPass.prepare(spec);
     midLowPass.prepare(spec);
     midHighPass.prepare(spec);
+
+    lowPass.reset();
+    highPass.reset();
+    midLowPass.reset();
+    midHighPass.reset();
 }
+
 
 void ThreeBandSplitterAudioProcessor::releaseResources() {}
 
@@ -59,56 +71,14 @@ void ThreeBandSplitterAudioProcessor::applyGainAndMute(juce::AudioBuffer<float>&
     buffer.applyGain(gain);
 }
 
+
+
 void ThreeBandSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
-    const int numChannels = buffer.getNumChannels();
-    const int numSamples = buffer.getNumSamples();
-
-    const float lowMidFreq = apvts.getRawParameterValue("lowMidFreq")->load();
-    const float midHighFreq = apvts.getRawParameterValue("midHighFreq")->load();
-
-    lowPass.setCutoffFrequency(lowMidFreq);
-    highPass.setCutoffFrequency(midHighFreq);
-    midLowPass.setCutoffFrequency(midHighFreq);
-    midHighPass.setCutoffFrequency(lowMidFreq);
-
-    // Copy input into band buffers
-    juce::AudioBuffer<float> lowBand(buffer), midBand(buffer), highBand(buffer);
-
-    juce::dsp::AudioBlock<float> lowBlock(lowBand);
-    juce::dsp::AudioBlock<float> midBlock(midBand);
-    juce::dsp::AudioBlock<float> highBlock(highBand);
-
-    // Apply filters
-    lowPass.process(juce::dsp::ProcessContextReplacing<float>(lowBlock));   // LP for low
-    highPass.process(juce::dsp::ProcessContextReplacing<float>(highBlock)); // HP for high
-    midHighPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock));
-    midLowPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock)); // Bandpass for mid
-
-    // Apply gain and mute
-    applyGainAndMute(lowBand, "gainLow", "muteLow");
-    applyGainAndMute(midBand, "gainMid", "muteMid");
-    applyGainAndMute(highBand, "gainHigh", "muteHigh");
-
-    // Handle solo logic
-    const bool soloLow = apvts.getRawParameterValue("soloLow")->load();
-    const bool soloMid = apvts.getRawParameterValue("soloMid")->load();
-    const bool soloHigh = apvts.getRawParameterValue("soloHigh")->load();
-    const bool anySolo = soloLow || soloMid || soloHigh;
-
-    // Clear the original buffer before mixing back
-    buffer.clear();
-
-    for (int ch = 0; ch < numChannels; ++ch)
-    {
-        if (!anySolo || soloLow)
-            buffer.addFrom(ch, 0, lowBand, ch, 0, numSamples);
-        if (!anySolo || soloMid)
-            buffer.addFrom(ch, 0, midBand, ch, 0, numSamples);
-        if (!anySolo || soloHigh)
-            buffer.addFrom(ch, 0, highBand, ch, 0, numSamples);
-    }
+    // BYPASS MODE: Just let the audio through untouched
+    // This test determines if audio routing is the issue (not filters or logic)
 }
+
 
 
 bool ThreeBandSplitterAudioProcessor::hasEditor() const { return true; }
@@ -125,6 +95,13 @@ void ThreeBandSplitterAudioProcessor::getStateInformation(juce::MemoryBlock& des
 void ThreeBandSplitterAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
     juce::ValueTree tree = juce::ValueTree::readFromData(data, sizeInBytes);
     if (tree.isValid()) apvts.replaceState(tree);
+}
+
+
+bool ThreeBandSplitterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    return layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo()
+        && layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
