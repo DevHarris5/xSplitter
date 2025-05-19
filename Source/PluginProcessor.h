@@ -37,6 +37,7 @@ public:
 private:
     juce::dsp::LinkwitzRileyFilter<float> lowPass, highPass, midLowPass, midHighPass;
 
-    void applyGainAndMute(juce::AudioBuffer<float>&, const juce::String& gainID, const juce::String& muteID);
+    void applyGainAndMute(juce::AudioBuffer<float>& buffer, const juce::String& gainID, const juce::String& muteID);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThreeBandSplitterAudioProcessor)
 };

@@ -15,14 +15,14 @@ public:
 
 private:
     ThreeBandSplitterAudioProcessor& audioProcessor;
-    
-    juce::Label lowMidLabel;
-    juce::Label midHighLabel;
+
+    juce::Label lowMidLabel, midHighLabel;
 
     juce::Slider lowMidSlider, midHighSlider;
     juce::Slider lowGainSlider, midGainSlider, highGainSlider;
-    juce::ToggleButton lowMuteButton, midMuteButton, highMuteButton;
-    juce::ToggleButton lowSoloButton, midSoloButton, highSoloButton;
+
+    juce::ToggleButton muteLowButton, muteMidButton, muteHighButton;
+    juce::ToggleButton soloLowButton, soloMidButton, soloHighButton;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lowMidAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midHighAttachment;
@@ -31,32 +31,13 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midGainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> highGainAttachment;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> lowMuteAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> midMuteAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> highMuteAttachment;
-
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> lowSoloAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> midSoloAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> highSoloAttachment;
-
-    // Mute buttons
-    juce::ToggleButton muteLowButton;
-    juce::ToggleButton muteMidButton;
-    juce::ToggleButton muteHighButton;
-
-    // Solo buttons
-    juce::ToggleButton soloLowButton;
-    juce::ToggleButton soloMidButton;
-    juce::ToggleButton soloHighButton;
-
-    // Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> muteLowAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> muteMidAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> muteHighAttachment;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> soloLowAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> soloMidAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> soloHighAttachment;
-
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThreeBandSplitterAudioProcessorEditor)
 };

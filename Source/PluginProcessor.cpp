@@ -1,8 +1,7 @@
 ﻿
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include <cstdint>  // for uint32_t
-
+#include <cstdint>
 
 ThreeBandSplitterAudioProcessor::ThreeBandSplitterAudioProcessor()
     : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
@@ -39,7 +38,7 @@ void ThreeBandSplitterAudioProcessor::changeProgramName(int, const juce::String&
 
 void ThreeBandSplitterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    juce::dsp::ProcessSpec spec{ sampleRate, static_cast<uint32_t> (samplesPerBlock), 2 };
+    juce::dsp::ProcessSpec spec{ sampleRate, static_cast<uint32_t>(samplesPerBlock), 2 };
     lowPass.prepare(spec);
     highPass.prepare(spec);
     midLowPass.prepare(spec);
@@ -56,13 +55,15 @@ void ThreeBandSplitterAudioProcessor::applyGainAndMute(juce::AudioBuffer<float>&
         return;
     }
 
-    const float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(gainID)->load());
+    float gain = juce::Decibels::decibelsToGain(apvts.getRawParameterValue(gainID)->load());
     buffer.applyGain(gain);
 }
 
-
 void ThreeBandSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
+
     const float lowMidFreq = apvts.getRawParameterValue("lowMidFreq")->load();
     const float midHighFreq = apvts.getRawParameterValue("midHighFreq")->load();
 
@@ -71,35 +72,41 @@ void ThreeBandSplitterAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     midLowPass.setCutoffFrequency(midHighFreq);
     midHighPass.setCutoffFrequency(lowMidFreq);
 
+    // Copy input into band buffers
     juce::AudioBuffer<float> lowBand(buffer), midBand(buffer), highBand(buffer);
 
     juce::dsp::AudioBlock<float> lowBlock(lowBand);
     juce::dsp::AudioBlock<float> midBlock(midBand);
     juce::dsp::AudioBlock<float> highBlock(highBand);
 
-    lowPass.process(juce::dsp::ProcessContextReplacing<float>(lowBlock));
-    highPass.process(juce::dsp::ProcessContextReplacing<float>(highBlock));
+    // Apply filters
+    lowPass.process(juce::dsp::ProcessContextReplacing<float>(lowBlock));   // LP for low
+    highPass.process(juce::dsp::ProcessContextReplacing<float>(highBlock)); // HP for high
     midHighPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock));
-    midLowPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock));
+    midLowPass.process(juce::dsp::ProcessContextReplacing<float>(midBlock)); // Bandpass for mid
 
+    // Apply gain and mute
     applyGainAndMute(lowBand, "gainLow", "muteLow");
     applyGainAndMute(midBand, "gainMid", "muteMid");
     applyGainAndMute(highBand, "gainHigh", "muteHigh");
 
+    // Handle solo logic
     const bool soloLow = apvts.getRawParameterValue("soloLow")->load();
     const bool soloMid = apvts.getRawParameterValue("soloMid")->load();
     const bool soloHigh = apvts.getRawParameterValue("soloHigh")->load();
     const bool anySolo = soloLow || soloMid || soloHigh;
 
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    // Clear the original buffer before mixing back
+    buffer.clear();
+
+    for (int ch = 0; ch < numChannels; ++ch)
     {
-        buffer.clear(ch, 0, buffer.getNumSamples());
         if (!anySolo || soloLow)
-            buffer.addFrom(ch, 0, lowBand, ch, 0, buffer.getNumSamples());
+            buffer.addFrom(ch, 0, lowBand, ch, 0, numSamples);
         if (!anySolo || soloMid)
-            buffer.addFrom(ch, 0, midBand, ch, 0, buffer.getNumSamples());
+            buffer.addFrom(ch, 0, midBand, ch, 0, numSamples);
         if (!anySolo || soloHigh)
-            buffer.addFrom(ch, 0, highBand, ch, 0, buffer.getNumSamples());
+            buffer.addFrom(ch, 0, highBand, ch, 0, numSamples);
     }
 }
 
