@@ -1,33 +1,28 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
+// ===============================
+// PluginEditor.h
+// ===============================
 #pragma once
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
-//==============================================================================
-/**
-*/
-class ThreeBandSplitterAudioProcessorEditor  : public juce::AudioProcessorEditor
+class ThreeBandSplitterAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
-    ThreeBandSplitterAudioProcessorEditor (ThreeBandSplitterAudioProcessor&);
-    ~ThreeBandSplitterAudioProcessorEditor() override;
+    ThreeBandSplitterAudioProcessorEditor(ThreeBandSplitterAudioProcessor&);
+    ~ThreeBandSplitterAudioProcessorEditor() override = default;
 
-    //==============================================================================
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
-    // This reference is provided as a quick way for your editor to
-    // access the processor object that created it.
     ThreeBandSplitterAudioProcessor& audioProcessor;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreeBandSplitterAudioProcessorEditor)
+    juce::Slider lowMidSlider;
+    juce::Slider midHighSlider;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lowMidAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midHighAttachment;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThreeBandSplitterAudioProcessorEditor)
 };

@@ -1,40 +1,39 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
-#include "PluginProcessor.h"
+// ===============================
+// PluginEditor.cpp
+// ===============================
 #include "PluginEditor.h"
 
-//==============================================================================
-ThreeBandSplitterAudioProcessorEditor::ThreeBandSplitterAudioProcessorEditor (ThreeBandSplitterAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+ThreeBandSplitterAudioProcessorEditor::ThreeBandSplitterAudioProcessorEditor(ThreeBandSplitterAudioProcessor& p)
+    : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-    setSize (400, 300);
+    addAndMakeVisible(lowMidSlider);
+    addAndMakeVisible(midHighSlider);
+
+    lowMidSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    lowMidSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 60, 20);
+
+    midHighSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+    midHighSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 60, 20);
+
+    lowMidAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "lowMidCrossover", lowMidSlider);
+
+    midHighAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "midHighCrossover", midHighSlider);
+
+    setSize(400, 200);
 }
 
-ThreeBandSplitterAudioProcessorEditor::~ThreeBandSplitterAudioProcessorEditor()
+void ThreeBandSplitterAudioProcessorEditor::paint(juce::Graphics& g)
 {
-}
-
-//==============================================================================
-void ThreeBandSplitterAudioProcessorEditor::paint (juce::Graphics& g)
-{
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::FontOptions (15.0f));
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    g.fillAll(juce::Colours::darkgrey);
+    g.setColour(juce::Colours::white);
+    g.setFont(15.0f);
+    g.drawFittedText("3-Band Splitter", getLocalBounds(), juce::Justification::centredTop, 1);
 }
 
 void ThreeBandSplitterAudioProcessorEditor::resized()
 {
-    // This is generally where you'll want to lay out the positions of any
-    // subcomponents in your editor..
+    lowMidSlider.setBounds(50, 60, 120, 120);
+    midHighSlider.setBounds(230, 60, 120, 120);
 }
